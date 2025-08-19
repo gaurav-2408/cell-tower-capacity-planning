@@ -3,3 +3,4 @@ Serverless cell tower capacity planning using data mining, forecasting, and geos
 
 Tasks:
 [x] - Initialized Github Projecct to track progress 
+[x] - Data Set upload in git

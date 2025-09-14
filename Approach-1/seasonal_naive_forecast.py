@@ -187,62 +187,87 @@ def plot_hexbin(y_true: np.ndarray, y_pred: np.ndarray, title: str, gridsize: in
 	plt.close(fig)
 
 
-def run(metric: str, beam: str, target_week: int, model_name: str, samples: int, use_log1p: bool, prophet_daily_order: int, prophet_weekly_order: int, prophet_changepoint_prior: float, prophet_seasonality_mode: str, hexbin_show: bool, hexbin_save: str, hexbin_gridsize: int) -> None:
-	train, test6, test11 = read_split(metric)
-	for df in [train, test6, test11]:
-		validate_beam_column(df, beam)
-	# Training series (0-839)
-	y_train_raw = train[beam].to_numpy()
-	# Targets
-	if target_week == 6:
-		y_true_raw = test6[beam].to_numpy()  # 168 points
-	elif target_week == 11:
-		y_true_raw = test11[beam].to_numpy()  # 168 points
-	else:
-		raise ValueError("target_week must be 6 or 11")
-	# Optional transform
-	y_train = maybe_transform(y_train_raw, use_log1p)
-	# Forecast in transformed space if enabled
-	if model_name == "seasonal_naive":
-		y_pred_t = seasonal_naive_forecast(y_train, horizon=len(y_true_raw), period=SEASONAL_PERIOD)
-	elif model_name == "prophet":
-		y_pred_t = prophet_forecast(y_train, horizon=len(y_true_raw), daily_order=prophet_daily_order, weekly_order=prophet_weekly_order, changepoint_prior=prophet_changepoint_prior, seasonality_mode=prophet_seasonality_mode)
-	elif model_name == "linear_ar":
-		y_pred_t = linear_ar_forecast(y_train, horizon=len(y_true_raw))
-	else:
-		raise ValueError("Unknown model. Use 'seasonal_naive', 'prophet', or 'linear_ar'.")
-	# Inverse transform to original space
-	y_pred = maybe_inverse(y_pred_t, use_log1p)
-	y_true = y_true_raw.astype(float)
-	mae, mape, rmse = compute_metrics(y_true, y_pred)
-	smape, median_ae = compute_additional_metrics(y_true, y_pred)
-	print({
-		"metric": metric,
-		"beam": beam,
-		"target_week": target_week,
-		"model": model_name,
-		"log1p": use_log1p,
-		"horizon": len(y_true),
-		"seasonal_period": SEASONAL_PERIOD if model_name == "seasonal_naive" else None,
-		"MAE": round(mae, 4),
-		"Median_AE": round(median_ae, 4),
-		"MAPE_percent": round(mape, 4) if not np.isnan(mape) else None,
-		"sMAPE_percent": round(smape, 4),
-		"RMSE": round(rmse, 4),
-	})
-	if samples and samples > 0:
-		samples = int(min(samples, len(y_true)))
-		comp_df = pd.DataFrame({
-			"t": np.arange(samples),
-			"y_true": y_true[:samples],
-			"y_pred": y_pred[:samples],
-		})
-		print("Samples (first N):")
-		print(comp_df.to_string(index=False))
-	# Hexbin visualization
-	if hexbin_show or (hexbin_save and len(hexbin_save) > 0):
-		title = f"Actual vs Predicted ({model_name}) - {metric} {beam} week {target_week}"
-		plot_hexbin(y_true, y_pred, title=title, gridsize=hexbin_gridsize, show=hexbin_show, save_path=hexbin_save)
+def run(metric: str, beam: str, target_week: int, model_name: str, samples: int,
+        use_log1p: bool, prophet_daily_order: int, prophet_weekly_order: int,
+        prophet_changepoint_prior: float, prophet_seasonality_mode: str,
+        hexbin_show: bool, hexbin_save: str, hexbin_gridsize: int):
+    train, test6, test11 = read_split(metric)
+    for df in [train, test6, test11]:
+        validate_beam_column(df, beam)
+
+    # Training series (0-839)
+    y_train_raw = train[beam].to_numpy()
+
+    # Targets
+    if target_week == 6:
+        y_true_raw = test6[beam].to_numpy()  # 168 points
+    elif target_week == 11:
+        y_true_raw = test11[beam].to_numpy()  # 168 points
+    else:
+        raise ValueError("target_week must be 6 or 11")
+
+    # Optional transform
+    y_train = maybe_transform(y_train_raw, use_log1p)
+
+    # Forecast in transformed space if enabled
+    if model_name == "seasonal_naive":
+        y_pred_t = seasonal_naive_forecast(y_train, horizon=len(y_true_raw), period=SEASONAL_PERIOD)
+    elif model_name == "prophet":
+        y_pred_t = prophet_forecast(
+            y_train, horizon=len(y_true_raw),
+            daily_order=prophet_daily_order,
+            weekly_order=prophet_weekly_order,
+            changepoint_prior=prophet_changepoint_prior,
+            seasonality_mode=prophet_seasonality_mode
+        )
+    elif model_name == "linear_ar":
+        y_pred_t = linear_ar_forecast(y_train, horizon=len(y_true_raw))
+    else:
+        raise ValueError("Unknown model. Use 'seasonal_naive', 'prophet', or 'linear_ar'.")
+
+    # Inverse transform to original space
+    y_pred = maybe_inverse(y_pred_t, use_log1p)
+    y_true = y_true_raw.astype(float)
+
+    # Metrics
+    mae, mape, rmse = compute_metrics(y_true, y_pred)
+    smape, median_ae = compute_additional_metrics(y_true, y_pred)
+
+    results = {
+        "metric": metric,
+        "beam": beam,
+        "target_week": target_week,
+        "model": model_name,
+        "log1p": use_log1p,
+        "horizon": len(y_true),
+        "seasonal_period": SEASONAL_PERIOD if model_name == "seasonal_naive" else None,
+        "MAE": round(mae, 4),
+        "Median_AE": round(median_ae, 4),
+        "MAPE_percent": round(mape, 4) if not np.isnan(mape) else None,
+        "sMAPE_percent": round(smape, 4),
+        "RMSE": round(rmse, 4),
+    }
+
+    # Print results to console
+    print(results)
+
+    if samples and samples > 0:
+        samples = int(min(samples, len(y_true)))
+        comp_df = pd.DataFrame({
+            "t": np.arange(samples),
+            "y_true": y_true[:samples],
+            "y_pred": y_pred[:samples],
+        })
+        print("Samples (first N):")
+        print(comp_df.to_string(index=False))
+
+    # Hexbin visualization
+    if hexbin_show or (hexbin_save and len(hexbin_save) > 0):
+        title = f"Actual vs Predicted ({model_name}) - {metric} {beam} week {target_week}"
+        plot_hexbin(y_true, y_pred, title=title, gridsize=hexbin_gridsize,
+                    show=hexbin_show, save_path=hexbin_save)
+
+    return results
 
 
 def parse_args(argv: List[str]) -> argparse.Namespace:

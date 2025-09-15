@@ -64,26 +64,42 @@ def seasonal_naive_forecast(history: np.ndarray, horizon: int, period: int = SEA
 	return forecast
 
 
-def compute_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Tuple[float, float, float]:
+def compute_core_errors(y_true: np.ndarray, y_pred: np.ndarray) -> Tuple[float, float, float]:
 	mae = float(np.mean(np.abs(y_true - y_pred)))
 	rmse = float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
-	# Safe MAPE: ignore zeros in denominator
-	mask = y_true != 0
-	if np.any(mask):
-		mape = float(np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100.0)
-	else:
-		mape = float("nan")
-	return mae, mape, rmse
-
-
-def compute_additional_metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Tuple[float, float]:
-	# sMAPE definition with small epsilon to avoid division by zero when both are zero
-	eps = 1e-9
-	num = np.abs(y_pred - y_true)
-	den = (np.abs(y_true) + np.abs(y_pred)).astype(float)
-	smape = float(np.mean(2.0 * num / (den + eps)) * 100.0)
 	median_ae = float(np.median(np.abs(y_true - y_pred)))
-	return smape, median_ae
+	return mae, rmse, median_ae
+
+
+def compute_wape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+	# WAPE = sum(|e|)/sum(|y|) * 100
+	denom = float(np.sum(np.abs(y_true)))
+	if denom == 0.0:
+		return float("nan")
+	num = float(np.sum(np.abs(y_true - y_pred)))
+	return (num / denom) * 100.0
+
+
+def compute_swape(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+	# Symmetric WAPE (bounded): 200 * sum(|e|) / (sum(|y|) + sum(|y_hat|))
+	num = float(np.sum(np.abs(y_true - y_pred)))
+	den = float(np.sum(np.abs(y_true)) + np.sum(np.abs(y_pred)))
+	if den == 0.0:
+		return float("nan")
+	return 200.0 * (num / den)
+
+
+def compute_mase(y_true: np.ndarray, y_pred: np.ndarray, y_train: np.ndarray, seasonal_period: int) -> float:
+	# MASE = MAE_forecast / MAE_seasonal_naive_in_sample
+	# Denominator: mean |y_t - y_{t-m}| on training with m = seasonal_period
+	if len(y_train) <= seasonal_period:
+		return float("nan")
+	diffs = np.abs(y_train[seasonal_period:] - y_train[:-seasonal_period])
+	denom = float(np.mean(diffs)) if diffs.size > 0 else float("nan")
+	if denom == 0.0 or not np.isfinite(denom):
+		return float("nan")
+	mae_forecast = float(np.mean(np.abs(y_true - y_pred)))
+	return mae_forecast / denom
 
 
 def build_hourly_time_index(start: str, hours: int) -> pd.DatetimeIndex:
@@ -232,8 +248,10 @@ def run(metric: str, beam: str, target_week: int, model_name: str, samples: int,
     y_true = y_true_raw.astype(float)
 
     # Metrics
-    mae, mape, rmse = compute_metrics(y_true, y_pred)
-    smape, median_ae = compute_additional_metrics(y_true, y_pred)
+    mae, rmse, median_ae = compute_core_errors(y_true, y_pred)
+    wape = compute_wape(y_true, y_pred)
+    swape = compute_swape(y_true, y_pred)
+    mase = compute_mase(y_true, y_pred, y_train_raw.astype(float), SEASONAL_PERIOD)
 
     results = {
         "metric": metric,
@@ -245,9 +263,10 @@ def run(metric: str, beam: str, target_week: int, model_name: str, samples: int,
         "seasonal_period": SEASONAL_PERIOD if model_name == "seasonal_naive" else None,
         "MAE": round(mae, 4),
         "Median_AE": round(median_ae, 4),
-        "MAPE_percent": round(mape, 4) if not np.isnan(mape) else None,
-        "sMAPE_percent": round(smape, 4),
         "RMSE": round(rmse, 4),
+        "WAPE_percent": round(wape, 4) if np.isfinite(wape) else None,
+        "sWAPE_percent": round(swape, 4) if np.isfinite(swape) else None,
+        "MASE": round(mase, 4) if np.isfinite(mase) else None,
     }
 
     # Print results to console

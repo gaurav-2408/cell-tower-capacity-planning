@@ -1,4 +1,5 @@
 import argparse
+import os
 import pandas as pd
 
 # Import the run function from seasonal_naive_forecast
@@ -36,8 +37,19 @@ def evaluate_all(metric: str, beam: str, target_week: int, log1p: bool,
     print(df_results.to_string(index=False))
 
     if save_csv:
-        df_results.to_csv(save_csv, index=False)
-        print(f"\nResults saved to {save_csv}")
+        # If user passed only a filename (no directory), place it under CSV_Results_Analysis at repo root
+        if os.path.isabs(save_csv) or os.path.dirname(save_csv):
+            out_path = save_csv
+        else:
+            # predict_accuracy.py resides in Approach-1; CSV_Results_Analysis is at repo root
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+            out_dir = os.path.join(repo_root, "CSV_Results_Analysis")
+            os.makedirs(out_dir, exist_ok=True)
+            out_path = os.path.join(out_dir, save_csv)
+
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        df_results.to_csv(out_path, index=False)
+        print(f"\nResults saved to {out_path}")
 
 
 def parse_args():

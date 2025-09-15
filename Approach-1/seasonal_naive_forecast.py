@@ -15,7 +15,9 @@ try:
 except Exception:
 	plt = None  # Optional plotting
 
-DATA_DIR = os.path.join("Beam-Level-Traffic-Timeseries-Dataset", "data")
+# Resolve data directory relative to this file so it works from any CWD
+_BASE_DIR = os.path.dirname(__file__)
+DATA_DIR = os.path.join(_BASE_DIR, "Beam-Level-Traffic-Timeseries-Dataset", "data")
 TRAIN_FILE_TPL = os.path.join(DATA_DIR, "train", "{metric}_train_0w-5w.csv")
 TEST_FILE_TPL_6 = os.path.join(DATA_DIR, "test", "{metric}_test_5w-6w.csv")
 TEST_FILE_TPL_11 = os.path.join(DATA_DIR, "test", "{metric}_test_10w-11w.csv")
@@ -263,6 +265,13 @@ def run(metric: str, beam: str, target_week: int, model_name: str, samples: int,
 
     # Hexbin visualization
     if hexbin_show or (hexbin_save and len(hexbin_save) > 0):
+        # If user provided only a filename for hexbin_save, place it under CSV_Results_Analysis
+        if hexbin_save and not os.path.isabs(hexbin_save) and not os.path.dirname(hexbin_save):
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+            out_dir = os.path.join(repo_root, "CSV_Results_Analysis")
+            os.makedirs(out_dir, exist_ok=True)
+            hexbin_save = os.path.join(out_dir, hexbin_save)
+
         title = f"Actual vs Predicted ({model_name}) - {metric} {beam} week {target_week}"
         plot_hexbin(y_true, y_pred, title=title, gridsize=hexbin_gridsize,
                     show=hexbin_show, save_path=hexbin_save)

@@ -74,7 +74,6 @@ def benchmark(metrics: List[str], weeks: List[int], beams: Optional[List[str]], 
     try:
         df.to_csv(out_path, index=False)
         print(f"Saved benchmark results to {out_path}")
-        return out_path
     except PermissionError:
         # Likely open in another program (e.g., Excel). Save to a timestamped file instead.
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -82,7 +81,49 @@ def benchmark(metrics: List[str], weeks: List[int], beams: Optional[List[str]], 
         alt_path = f"{base}_{ts}{ext or '.csv'}"
         df.to_csv(alt_path, index=False)
         print(f"Target file locked; saved benchmark results to {alt_path}")
-        return alt_path
+        out_path = alt_path
+
+    # Also emit aggregated summaries for quick comparison
+    try:
+        base_no_ext, _ = os.path.splitext(out_path)
+        by_model_path = f"{base_no_ext}_summary_by_model.csv"
+        by_metric_model_path = f"{base_no_ext}_summary_by_metric_model.csv"
+
+        # Group means (lower is better for these metrics). Prefer robust metrics.
+        metric_cols = [
+            "MAE",
+            "Median_AE",
+            "RMSE",
+            "WAPE_percent",
+            "sWAPE_percent",
+            "MASE",
+        ]
+        # Coerce to numeric in case of mixed types
+        for c in metric_cols:
+            if c in df.columns:
+                df[c] = pd.to_numeric(df[c], errors="coerce")
+
+        by_model = (
+            df.groupby(["model"]) [metric_cols]
+              .mean(numeric_only=True)
+              .reset_index()
+        )
+        by_model.to_csv(by_model_path, index=False)
+
+        if "metric" in df.columns:
+            by_metric_model = (
+                df.groupby(["metric", "model"]) [metric_cols]
+                  .mean(numeric_only=True)
+                  .reset_index()
+            )
+            by_metric_model.to_csv(by_metric_model_path, index=False)
+
+        print(f"Saved summaries: {by_model_path} and {by_metric_model_path}")
+    except Exception:
+        # Don't fail the run if summary export has issues
+        pass
+
+    return out_path
 
 
 def parse_args() -> argparse.Namespace:

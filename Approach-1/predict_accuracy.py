@@ -32,6 +32,14 @@ def evaluate_all(metric: str, beam: str, target_week: int, log1p: bool,
         results.append(res)
 
     df_results = pd.DataFrame(results)
+    # Reorder columns to highlight robust metrics
+    preferred_cols = [
+        "metric","beam","target_week","model","log1p","horizon","seasonal_period",
+        "MAE","Median_AE","RMSE","WAPE_percent","sWAPE_percent","MASE"
+    ]
+    existing_cols = [c for c in preferred_cols if c in df_results.columns]
+    remaining_cols = [c for c in df_results.columns if c not in existing_cols]
+    df_results = df_results[existing_cols + remaining_cols]
     print("\nModel Accuracy Comparison")
     print("=" * 40)
     print(df_results.to_string(index=False))

@@ -263,6 +263,13 @@ def run(metric: str, beam: str, target_week: int, model_name: str, samples: int,
 
     # Hexbin visualization
     if hexbin_show or (hexbin_save and len(hexbin_save) > 0):
+        # If user provided only a filename for hexbin_save, place it under CSV_Results_Analysis
+        if hexbin_save and not os.path.isabs(hexbin_save) and not os.path.dirname(hexbin_save):
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+            out_dir = os.path.join(repo_root, "CSV_Results_Analysis")
+            os.makedirs(out_dir, exist_ok=True)
+            hexbin_save = os.path.join(out_dir, hexbin_save)
+
         title = f"Actual vs Predicted ({model_name}) - {metric} {beam} week {target_week}"
         plot_hexbin(y_true, y_pred, title=title, gridsize=hexbin_gridsize,
                     show=hexbin_show, save_path=hexbin_save)

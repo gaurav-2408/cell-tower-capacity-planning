@@ -1,88 +1,57 @@
-"""
-main.py
-Orchestration script to run Phase C pipeline:
-1) Load data
-2) Compute derived features
-3) Prepare features for clustering
-4) Run KMeans and DBSCAN
-5) Evaluate and save outputs
-6) Produce hexbin and folium maps
-"""
-
-import os
 import pandas as pd
-from scripts.utils import load_data, compute_derived_features, prepare_features_for_clustering
-from scripts.clustering import run_kmeans, run_dbscan
-from scripts.visualize import plot_hexbin, folium_cluster_map
-from scripts.evaluate import silhouette_for_labels, cluster_summary
-from sklearn.preprocessing import StandardScaler
-
-DATA_PATH = "data/towers.csv"
-OUT_DIR = "outputs"
-os.makedirs(OUT_DIR, exist_ok=True)
+from data_utils import load_and_clean, compute_cell_density, compute_overlap_coefficient, compute_peak_hour_and_trends
+from clustering_models import cluster_geo_kmeans, cluster_geo_dbscan, cluster_features_kmeans
+from evaluation import cluster_summary
+from visualization import plot_hexbin, plot_folium_clusters
 
 def main():
-    print("Loading data...")
-    df = load_data(DATA_PATH)
+    print("Loading and cleaning data...")
+    df = load_and_clean("dataset.csv")
 
-    print("Computing derived features...")
-    df = compute_derived_features(df)
+    print("Computing cell density (500m)...")
+    df = compute_cell_density(df, radius_meters=500)
 
-    print("Selecting features for clustering and preparing X...")
-    X, feature_list = prepare_features_for_clustering(df, features=None, fill_strategy="median")
-    print("Using features:", feature_list)
+    print("Computing overlap coefficient...")
+    df = compute_overlap_coefficient(df)
 
-    # Standard scaler (useful for silhouette)
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    print("Computing peak hour & congestion trends...")
+    df = compute_peak_hour_and_trends(df, tower_id_col="tower_cell_id")
 
-    # --- KMeans ---
-    n_clusters = 5
-    print(f"Running KMeans with k={n_clusters} ...")
-    df_k = run_kmeans(df, X, n_clusters=n_clusters)
-    df_k.to_csv(f"{OUT_DIR}/clusters_kmeans.csv", index=False)
-    print("Saved clusters_kmeans.csv")
+    # --- Geo KMeans ---
+    print("Running geographic KMeans clustering...")
+    df_geo_k, km_geo = cluster_geo_kmeans(df, n_clusters=5)
+    df_geo_k.to_csv("clustered_geo_kmeans.csv", index=False)
 
-    # silhouette (note: X_scaled used)
-    try:
-        k_sil = silhouette_for_labels(X_scaled, df_k["kmeans_label"].values)
-    except Exception:
-        k_sil = None
-    print("KMeans silhouette score:", k_sil)
+    # --- Geo DBSCAN (on sample) ---
+    print("Running geographic DBSCAN clustering (sampled)...")
+    df_geo_d, db_geo = cluster_geo_dbscan(df_geo_k, eps=0.06, min_samples=10, sample_size=10000)
+    df_geo_d.to_csv("clustered_geo_dbscan_sample.csv", index=False)
 
-    # --- DBSCAN ---
-    print("Running DBSCAN (eps=0.5,min_samples=5) ...")
-    df_db = run_dbscan(df, X, eps=0.5, min_samples=5)
-    df_db.to_csv(f"{OUT_DIR}/clusters_dbscan.csv", index=False)
-    print("Saved clusters_dbscan.csv")
-    try:
-        db_sil = silhouette_for_labels(X_scaled, df_db["dbscan_label"].values)
-    except Exception:
-        db_sil = None
-    print("DBSCAN silhouette score:", db_sil)
+    # --- Throughput KMeans ---
+    print("Running throughput KMeans clustering...")
+    feat_throughput = ["dl_bitrate", "ul_bitrate", "throughput", "traffic_density"]
+    feat_throughput = [f for f in feat_throughput if f in df_geo_d.columns]
+
+    df_th, km_thr = cluster_features_kmeans(df_geo_d, feature_list=feat_throughput, n_clusters=5)
+    df_th.to_csv("clustered_throughput_kmeans.csv", index=False)
 
     # --- Summaries ---
-    print("Generating cluster summaries (KMeans)...")
-    ks = cluster_summary(df_k, "kmeans_label", feature_list)
-    ks.to_csv(f"{OUT_DIR}/kmeans_summary.csv")
-    print("Saved kmeans_summary.csv")
+    print("Saving cluster summaries...")
+    summary_geo = cluster_summary(df_geo_k, "geo_kmeans_label", ["tower_range", "traffic_density", "throughput"])
+    summary_geo.to_csv("geo_kmeans_summary.csv")
 
-    print("Generating cluster summaries (DBSCAN)...")
-    ds = cluster_summary(df_db, "dbscan_label", feature_list)
-    ds.to_csv(f"{OUT_DIR}/dbscan_summary.csv")
-    print("Saved dbscan_summary.csv")
+    summary_thr = cluster_summary(df_th, "feature_kmeans_label", feat_throughput)
+    summary_thr.to_csv("throughput_kmeans_summary.csv")
 
     # --- Visualizations ---
-    print("Creating hexbin of congestion_score ...")
-    plot_hexbin(df, c_col="congestion_score", gridsize=80, save_path=f"{OUT_DIR}/hexbin_congestion.png")
+    print("Creating visualizations...")
+    plot_hexbin(df, feature="throughput", save_path="hexbin_throughput.png")
+    plot_folium_clusters(df_geo_k, label_col="geo_kmeans_label",
+                         lat_col="servingcell_lat" if "servingcell_lat" in df.columns else "latitude",
+                         lon_col="servingcell_lon" if "servingcell_lon" in df.columns else "longitude",
+                         out_html="map_geo_kmeans.html", feature="throughput")
 
-    print("Creating folium map for KMeans ...")
-    folium_cluster_map(df_k, label_col="kmeans_label", congestion_col="congestion_score", out_html=f"{OUT_DIR}/map_kmeans.html", popup_cols=["cell_id","mcc","mnc"])
-
-    print("Creating folium map for DBSCAN ...")
-    folium_cluster_map(df_db, label_col="dbscan_label", congestion_col="congestion_score", out_html=f"{OUT_DIR}/map_dbscan.html", popup_cols=["cell_id","mcc","mnc"])
-
-    print("All outputs saved in", OUT_DIR)
+    print("Pipeline complete. Outputs saved.")
 
 if __name__ == "__main__":
     main()

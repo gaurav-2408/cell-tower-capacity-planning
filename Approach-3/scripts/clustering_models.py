@@ -2,11 +2,7 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.preprocessing import StandardScaler
 
 def cluster_geo_kmeans(df, n_clusters=5, lat_col=None, lon_col=None):
-    """
-    KMeans clustering on geographic coordinates.
-    If lat/lon columns are not provided, tries to auto-detect.
-    """
-    # Auto-detect coordinate columns
+
     if lat_col is None or lon_col is None:
         if "servingcell_lat" in df.columns and "servingcell_lon" in df.columns:
             lat_col, lon_col = "servingcell_lat", "servingcell_lon"
@@ -29,11 +25,7 @@ def cluster_geo_kmeans(df, n_clusters=5, lat_col=None, lon_col=None):
 
 
 def cluster_geo_dbscan(df, eps=0.06, min_samples=10, lat_col=None, lon_col=None, sample_size=10000):
-    """
-    DBSCAN clustering on geographic coordinates (sampled).
-    Auto-detects lat/lon columns.
-    """
-    # Auto-detect coordinate columns
+
     if lat_col is None or lon_col is None:
         if "servingcell_lat" in df.columns and "servingcell_lon" in df.columns:
             lat_col, lon_col = "servingcell_lat", "servingcell_lon"
@@ -59,9 +51,6 @@ def cluster_geo_dbscan(df, eps=0.06, min_samples=10, lat_col=None, lon_col=None,
 
 
 def cluster_features_kmeans(df, feature_list, n_clusters=5):
-    """
-    KMeans clustering on given features.
-    """
     X = df[feature_list].dropna()
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)

@@ -2,19 +2,14 @@ import pandas as pd
 import numpy as np
 
 def load_and_clean(path="dataset.csv"):
-    """
-    Load dataset and clean columns (timestamps, numeric conversions).
-    """
     df = pd.read_csv(path, low_memory=False)
 
-    # --- Timestamps ---
     if "timestamp" in df.columns:
         try:
             df["timestamp"] = pd.to_datetime(df["timestamp"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
         except Exception:
             df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
 
-    # --- Force numeric for critical fields ---
     num_cols = [
         "rsrp", "rsrq", "snr", "cqi", "rssi",
         "dl_bitrate", "ul_bitrate",
@@ -27,13 +22,11 @@ def load_and_clean(path="dataset.csv"):
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    # --- Mobility fix ---
     if "mobility_pattern" in df.columns:
         df["mobility_category"] = pd.Series(dtype="object")
         df.loc[df["mobility_pattern"].str.contains("static|still|home|office", na=False), "mobility_category"] = "static"
         df.loc[df["mobility_pattern"].str.contains("move|walk|veh|transit", na=False), "mobility_category"] = "mobile"
 
-    # --- Derived Features ---
     if "tower_samples" in df.columns and "tower_range" in df.columns:
         df["traffic_density"] = np.where(df["tower_range"] > 0,
                                          df["tower_samples"] / (df["tower_range"] ** 2), np.nan)
@@ -47,9 +40,6 @@ def load_and_clean(path="dataset.csv"):
 
 
 def compute_cell_density(df, radius_meters=500):
-    """
-    Approximate: count towers within given radius (using Haversine).
-    """
     if "tower_lat" not in df.columns or "tower_lon" not in df.columns:
         print("Tower coordinates missing. Skipping cell density.")
         return df
@@ -70,9 +60,6 @@ def compute_cell_density(df, radius_meters=500):
 
 
 def compute_overlap_coefficient(df):
-    """
-    Fast proxy: use normalized cell density as overlap coefficient.
-    """
     if "cell_density_500m" not in df.columns:
         print("Cell density not computed. Skipping overlap coefficient.")
         return df
@@ -82,9 +69,6 @@ def compute_overlap_coefficient(df):
 
 
 def compute_peak_hour_and_trends(df, tower_id_col="tower_cell_id"):
-    """
-    Example: compute peak hour congestion and simple trend.
-    """
     if "timestamp" not in df.columns or tower_id_col not in df.columns:
         print("Timestamps or tower IDs missing. Skipping congestion trends.")
         return df

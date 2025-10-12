@@ -5,7 +5,7 @@ from scripts.data_utils import (
     load_and_clean,
     compute_cell_density,
     compute_overlap_coefficient,
-    compute_peak_hour_and_trends,   # ✅ fixed import
+    compute_peak_hour_and_trends,  
 )
 from scripts.clustering_models import (
     cluster_geo_kmeans,
@@ -23,9 +23,8 @@ DATA_FILE = os.path.join(INPUT_DIR, "dataset.csv")
 
 
 def evaluate_all_metrics(df, output_path):
-    """Run clustering evaluation metrics and save results."""
     with open(output_path, "w", encoding="utf-8") as f:
-        # --- Geographic KMeans ---
+        # Geographic KMeans
         if "geo_kmeans_label" in df.columns:
             X_geo = df[["servingcell_lat", "servingcell_lon"]].dropna().values
             labels_geo = df.loc[~df["geo_kmeans_label"].isna(), "geo_kmeans_label"].astype(int).values
@@ -35,7 +34,7 @@ def evaluate_all_metrics(df, output_path):
             for k, v in geo_results.items():
                 f.write(f"{k}: {v}\n")
 
-        # --- Throughput KMeans ---
+        # Throughput KMeans
         if "feature_kmeans_label" in df.columns:
             features = ["dl_bitrate", "ul_bitrate", "throughput", "traffic_density"]
             X_thr = df[features].dropna().values
@@ -62,9 +61,9 @@ def main():
     df = compute_overlap_coefficient(df)
 
     print("Computing peak hour & congestion trends...")
-    df = compute_peak_hour_and_trends(df)   # ✅ fixed function call
+    df = compute_peak_hour_and_trends(df)  
 
-    # --- Clustering ---
+    # Clustering
     print("Running geographic KMeans clustering...")
     df_geo_k, km_geo = cluster_geo_kmeans(df, n_clusters=5)
 
@@ -75,14 +74,14 @@ def main():
     print("Running geographic DBSCAN clustering...")
     df_geo_d, db_geo = cluster_geo_dbscan(df_th, eps=0.06, min_samples=10)
 
-    # --- Save outputs ---
+    # Save outputs
     df_geo_k.to_csv(os.path.join(OUTPUT_DIR, "clustered_geo_kmeans.csv"), index=False)
     df_th.to_csv(os.path.join(OUTPUT_DIR, "clustered_throughput_kmeans.csv"), index=False)
     df_geo_d.sample(n=500, random_state=42).to_csv(
         os.path.join(OUTPUT_DIR, "clustered_geo_dbscan_sample.csv"), index=False
     )
 
-    # --- Visualizations ---
+    # Visualizations
     print("Generating hexbin plot (throughput)...")
     plot_hexbin(df_th, feature="throughput", output_file=os.path.join(OUTPUT_DIR, "hexbin_throughput.png"))
 

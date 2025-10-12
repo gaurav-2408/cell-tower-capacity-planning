@@ -14,11 +14,6 @@ def plot_hexbin(
     cmap="Blues",
     output_file="output/hexbin_plot.png",
 ):
-    """
-    Create a hexbin plot.
-    - If x_col and y_col are given: 2D hexbin (x vs y).
-    - If feature is given: 1D hexbin-like plot (feature vs sample index).
-    """
     plt.figure(figsize=(10, 6))
 
     if x_col and y_col:
@@ -32,7 +27,7 @@ def plot_hexbin(
         plt.ylabel(feature)
         plt.title(f"Hexbin plot of {feature}")
     else:
-        print("❌ Please provide either (x_col & y_col) or feature.")
+        print("Please provide either (x_col & y_col) or feature.")
         return
 
     plt.colorbar(label="Counts")
@@ -48,11 +43,6 @@ def plot_folium_clusters(
     label_col="geo_kmeans_label",
     output_file="output/map_geo_kmeans.html",
 ):
-    """
-    Create a Folium map with all cluster boundaries drawn at once.
-    Each cluster gets a convex hull polygon.
-    Boundaries can be toggled via LayerControl.
-    """
     if df.empty or lat_col not in df.columns or lon_col not in df.columns:
         print("No coordinates available for plotting.")
         return

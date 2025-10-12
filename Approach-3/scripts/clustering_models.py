@@ -2,7 +2,6 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.preprocessing import StandardScaler
 
 def cluster_geo_kmeans(df, n_clusters=5, lat_col=None, lon_col=None):
-
     if lat_col is None or lon_col is None:
         if "servingcell_lat" in df.columns and "servingcell_lon" in df.columns:
             lat_col, lon_col = "servingcell_lat", "servingcell_lon"
@@ -25,7 +24,6 @@ def cluster_geo_kmeans(df, n_clusters=5, lat_col=None, lon_col=None):
 
 
 def cluster_geo_dbscan(df, eps=0.06, min_samples=10, lat_col=None, lon_col=None, sample_size=10000):
-
     if lat_col is None or lon_col is None:
         if "servingcell_lat" in df.columns and "servingcell_lon" in df.columns:
             lat_col, lon_col = "servingcell_lat", "servingcell_lon"

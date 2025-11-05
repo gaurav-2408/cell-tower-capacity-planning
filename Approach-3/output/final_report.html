@@ -1,0 +1,84 @@
+
+    <html>
+    <head>
+    <title>Cell Tower Clustering Report</title>
+    <style>
+    body {font-family: Arial; margin: 40px; background-color: #f8f9f9; color: #212F3D;}
+    h1, h2, h3 {font-family: Segoe UI;}
+    table {border-collapse: collapse; margin: 20px 0; width: 70%;}
+    th, td {border: 1px solid #ccc; padding: 8px 12px; text-align: left;}
+    th {background-color: #3498DB; color: white;}
+    tr:nth-child(even) {background-color: #f2f2f2;}
+    .footer {margin-top: 40px; font-size: 0.9em; color: gray;}
+    </style>
+    </head>
+    <body>
+    <h1 style='color:#2E86C1;'>Cell Tower Capacity & Clustering Report</h1>
+<p>This report summarizes K-Means clustering and coverage efficiency metrics.</p>
+<h2 style='color:#1F618D;'>K-Means Clustering Metrics</h2>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: center;">
+      <th>Metric</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Silhouette Score (sample)</td>
+      <td>0.8218</td>
+    </tr>
+    <tr>
+      <td>Davies-Bouldin Index</td>
+      <td>0.5369</td>
+    </tr>
+    <tr>
+      <td>Calinski-Harabasz Index</td>
+      <td>409821.4345</td>
+    </tr>
+    <tr>
+      <td>Dunn Index (sample)</td>
+      <td>0.0191</td>
+    </tr>
+  </tbody>
+</table>
+<h2 style='color:#117A65;'>Coverage Efficiency Metrics</h2>
+<table class="dataframe">
+  <thead>
+    <tr style="text-align: center;">
+      <th>Metric</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Under Coverage (%)</td>
+      <td>0.7551</td>
+    </tr>
+    <tr>
+      <td>Over Coverage (%)</td>
+      <td>5.0883</td>
+    </tr>
+    <tr>
+      <td>Coverage Ratio (per km)</td>
+      <td>0.0356</td>
+    </tr>
+    <tr>
+      <td>Coverage Ratio Index (0-1)</td>
+      <td>0.7474</td>
+    </tr>
+  </tbody>
+</table>
+
+    <h3 style='color:#424949;'>Interpretation</h3>
+    <ul>
+        <li><b>Under Coverage (%):</b> Lower is better – towers covering too small an area.</li>
+        <li><b>Over Coverage (%):</b> Moderate values (5–15%) are normal – towers covering wide areas.</li>
+        <li><b>Coverage Ratio (per km):</b> Measures traffic density per km of coverage. Higher = better utilization.</li>
+        <li><b>Coverage Ratio Index (0–1):</b> Scaled efficiency score. Values near 1 indicate excellent utilization.</li>
+    </ul>
+    
+    <div class="footer"><p>Generated automatically by the Cell Tower Capacity Planning System.</p></div>
+    </body>
+    </html>
+    
